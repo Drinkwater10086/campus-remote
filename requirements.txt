@@ -1,0 +1,5 @@
+Pillow==12.3.0
+av==19.0.2
+dxcam==0.3.0
+aioice==0.13.0
+aioquic==1.8.0
