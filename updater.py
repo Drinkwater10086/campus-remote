@@ -15,7 +15,7 @@ import threading
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 REPO = "Drinkwater10086/campus-remote"
 RELEASES = f"https://api.github.com/repos/{REPO}/releases/latest"
 ASSET = "CampusRemote.exe"

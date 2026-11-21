@@ -265,7 +265,7 @@ class Viewer:
                     if blob[0] == STATS_KIND:
                         if len(blob) == STATS_REPLY.size:
                             _, timestamp = STATS_REPLY.unpack(blob)
-                            now = time.monotonic_ns()
+                            now = time.perf_counter_ns()
                             if 0 <= now - timestamp < 15_000_000_000:
                                 self.events.put((generation, "rtt", (now - timestamp) / 1e6))
                         continue
@@ -447,7 +447,7 @@ class Viewer:
                 self.draw(native, image, encoder_name, decoder_name)
         if self.conn and time.monotonic() - self.last_ping >= 1:
             self.last_ping = time.monotonic()
-            self.send({'op': 'ping', 'probe': time.monotonic_ns()})
+            self.send({'op': 'ping', 'probe': time.perf_counter_ns()})
             self.update_stats_window()
         self.root.after(2 if self.conn else 20, self.refresh)
 

@@ -147,6 +147,7 @@ class Host:
         encoder_settings = DEFAULT
         pending_probe = None
         flow_lock = threading.Lock()
+        probe_ready = threading.Event()
         frames_sent = frames_acked = 0
         input_state = self.input_factory()
         viewer_hwnd = hello.get("viewer_hwnd")
@@ -170,6 +171,7 @@ class Host:
                         if type(nonce) is int and 0 < nonce < 2**64:
                             with flow_lock:
                                 pending_probe = nonce
+                                probe_ready.set()
                     elif message.get("op") == "frame_ack" and frame_ack:
                         count = message.get("count")
                         with flow_lock:
@@ -194,6 +196,7 @@ class Host:
             nonlocal pending_probe
             with flow_lock:
                 nonce, pending_probe = pending_probe, None
+                probe_ready.clear()
                 available = not frame_ack or frames_sent - frames_acked < LAN_VIDEO_WINDOW
             if nonce is not None:
                 send(conn, STATS_REPLY.pack(STATS_KIND, nonce))
@@ -217,11 +220,11 @@ class Host:
                 if fps != paced_fps:
                     paced_fps = fps
                     next_frame = now
+                available = video_slot_available()
                 if now < next_frame:
-                    time.sleep(next_frame - now)
-                    if closed.is_set() or self.stop_event.is_set():
-                        break
-                if not video_slot_available():
+                    probe_ready.wait(max(0, next_frame - time.perf_counter()))
+                    continue
+                if not available:
                     # A slow viewer throttles capture before another frame enters the TCP stream.
                     time.sleep(min(interval, 0.004))
                     next_frame = time.perf_counter()
