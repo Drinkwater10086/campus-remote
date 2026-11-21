@@ -27,6 +27,9 @@ def host_window(root):
     updates = queue.SimpleQueue()
     host = None
     internet = None
+    if updater := getattr(root, "updater", None):
+        updater.mode = "host"
+        updater.is_active = lambda: host is not None
 
     def toggle():
         nonlocal host, internet
@@ -110,10 +113,14 @@ def host_window(root):
 class Viewer:
     def __init__(self, root):
         self.root = root
+        if updater := getattr(root, "updater", None):
+            updater.mode = "viewer"
+            updater.is_active = lambda: self.worker is not None
         self.port = PORT
         self.route = ""
         self.internet = None
         self.conn = None
+        self.write_lock = threading.Lock()
         self.worker = None
         self.generation = 0
         self.events = queue.SimpleQueue()
@@ -222,12 +229,16 @@ class Viewer:
             self.status.set("请输入被控端的连接密钥")
             return
         self.generation += 1
-        self.worker = threading.Thread(target=self.read, args=(self.generation, secret, self.port, None if self.route else root_window(self.root.winfo_id())), daemon=True)
+        viewer_hwnd = None if self.route else root_window(self.root.winfo_id())
+        self.worker = threading.Thread(
+            target=self.read, args=(self.generation, secret, self.port, viewer_hwnd,
+                                    self.route == "局域网直连"), daemon=True,
+        )
         self.button.configure(text="断开")
         self.status.set("正在连接")
         self.worker.start()
 
-    def read(self, generation, secret, port, viewer_hwnd):
+    def read(self, generation, secret, port, viewer_hwnd, lan=False):
         import av
         from video import Decoder
 
@@ -235,7 +246,7 @@ class Viewer:
             with socket.create_connection((ADDRESS, port), timeout=3) as conn:
                 conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 send_message(conn, {"op": "hello", "secret": secret, "video": "h264-v2",
-                                    "codec_markers": True, "viewer_hwnd": viewer_hwnd})
+                                    "codec_markers": True, "viewer_hwnd": viewer_hwnd, "frame_ack": lan})
                 hello = receive_message(conn)
                 if hello.get("video") != "h264-v2":
                     self.events.put((generation, "被控端版本不兼容", None))
@@ -247,6 +258,8 @@ class Viewer:
                 self.events.put((generation, "connected", conn))
                 decoder = Decoder()
                 pending_bytes = 0
+                confirm_frames = lan and hello.get("frame_ack") is True
+                processed = 0
                 while generation == self.generation:
                     blob = receive(conn, MAX_FRAME)
                     if blob[0] == STATS_KIND:
@@ -269,13 +282,18 @@ class Viewer:
                                                     decoder.decoder_name))
                         self.events.put((generation, "bytes", pending_bytes))
                         pending_bytes = 0
+                    if confirm_frames:
+                        processed += 1
+                        with self.write_lock:
+                            send_message(conn, {"op": "frame_ack", "count": processed})
         except (OSError, EOFError, ValueError, av.FFmpegError):
             self.events.put((generation, "连接已断开或被控端未启动", None))
 
     def send(self, message):
         if self.conn:
             try:
-                send_message(self.conn, message)
+                with self.write_lock:
+                    send_message(self.conn, message)
                 return True
             except OSError:
                 self.disconnect("连接已断开")
@@ -348,8 +366,9 @@ class Viewer:
         self.generation += 1
         if self.conn:
             try:
-                send_message(self.conn, {"op": "release"})
-                self.conn.shutdown(socket.SHUT_RDWR)
+                with self.write_lock:
+                    send_message(self.conn, {"op": "release"})
+                    self.conn.shutdown(socket.SHUT_RDWR)
             except OSError:
                 pass
         self.conn = self.worker = self.bounds = self.photo = None
@@ -711,12 +730,16 @@ if __name__ == "__main__":
         raise SystemExit(diagnose(root, args.diagnose_public, public=True))
     if args.diagnose:
         raise SystemExit(diagnose(root, args.diagnose))
+    from updater import AutoUpdater, mark_ready
+
+    root.updater = AutoUpdater(root)
     if args.mode == "host":
         host_window(root)
     elif args.mode == "viewer":
         Viewer(root)
     else:
         choose_mode(root)
+    root.after_idle(mark_ready)
     root.mainloop()
 
 

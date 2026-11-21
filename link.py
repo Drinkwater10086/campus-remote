@@ -15,6 +15,7 @@ HEADER = struct.Struct("!I")
 VIDEO_HEADER = struct.Struct("!IB")
 STATS_REPLY = struct.Struct("!BQ")
 STATS_KIND = 0x80
+LAN_VIDEO_WINDOW = 4
 
 
 def read_exact(conn, count):
@@ -137,14 +138,16 @@ class Host:
         supplied = hello.get("secret")
         allowed = (hello.get("op") == "hello" and hello.get("video") == "h264-v2" and isinstance(supplied, str)
                    and hmac.compare_digest(supplied.encode(), self.secret.encode()))
-        send_message(conn, {"ok": allowed, "video": "h264-v2"})
+        frame_ack = hello.get("frame_ack") is True
+        send_message(conn, {"ok": allowed, "video": "h264-v2", "frame_ack": frame_ack})
         if not allowed:
             return
         self.status("已连接 · 本机直连")
         closed = threading.Event()
         encoder_settings = DEFAULT
         pending_probe = None
-        probe_lock = threading.Lock()
+        flow_lock = threading.Lock()
+        frames_sent = frames_acked = 0
         input_state = self.input_factory()
         viewer_hwnd = hello.get("viewer_hwnd")
         if isinstance(input_state, DesktopInput) and type(viewer_hwnd) is int and 0 < viewer_hwnd <= 0xffffffff:
@@ -153,7 +156,7 @@ class Host:
             self.input_state = input_state
 
         def read_controls():
-            nonlocal encoder_settings, pending_probe
+            nonlocal encoder_settings, pending_probe, frames_acked
             try:
                 while not closed.is_set() and not self.stop_event.is_set():
                     message = receive_message(conn)
@@ -165,8 +168,13 @@ class Host:
                     elif message.get("op") == "ping":
                         nonce = message.get("probe")
                         if type(nonce) is int and 0 < nonce < 2**64:
-                            with probe_lock:
+                            with flow_lock:
                                 pending_probe = nonce
+                    elif message.get("op") == "frame_ack" and frame_ack:
+                        count = message.get("count")
+                        with flow_lock:
+                            if type(count) is int and frames_acked < count <= frames_sent:
+                                frames_acked = count
                     else:
                         with self.input_lock:
                             if self.input_enabled and not self.stop_event.is_set():
@@ -181,6 +189,15 @@ class Host:
                 with self.input_lock:
                     input_state.release()
                     self.input_state = None
+
+        def video_slot_available():
+            nonlocal pending_probe
+            with flow_lock:
+                nonce, pending_probe = pending_probe, None
+                available = not frame_ack or frames_sent - frames_acked < LAN_VIDEO_WINDOW
+            if nonce is not None:
+                send(conn, STATS_REPLY.pack(STATS_KIND, nonce))
+            return available
 
         reader = threading.Thread(target=read_controls, daemon=True)
         reader.start()
@@ -204,6 +221,11 @@ class Host:
                     time.sleep(next_frame - now)
                     if closed.is_set() or self.stop_event.is_set():
                         break
+                if not video_slot_available():
+                    # A slow viewer throttles capture before another frame enters the TCP stream.
+                    time.sleep(min(interval, 0.004))
+                    next_frame = time.perf_counter()
+                    continue
                 image = self.capture_frame() if self.capture_frame else None
                 source_size = image.size if image is not None else primary_size()
                 new_format = (source_size, active_settings)
@@ -237,15 +259,17 @@ class Host:
                         if screen is None:
                             screen = ScreenCapture(target)
                         image = screen.frame(source_size)
-                # Emit diagnostics on the video writer thread to preserve frame boundaries.
-                with probe_lock:
-                    nonce, pending_probe = pending_probe, None
-                if nonce is not None:
-                    send(conn, STATS_REPLY.pack(STATS_KIND, nonce))
                 for flags, packet in encoder.encode_packets(image):
                     size = packet.size + 1
                     if size > MAX_FRAME:
                         raise ValueError("编码报文过大")
+                    while not video_slot_available():
+                        if closed.is_set() or self.stop_event.is_set():
+                            return
+                        time.sleep(min(interval, 0.004))
+                    if frame_ack:
+                        with flow_lock:
+                            frames_sent += 1
                     conn.sendall(b"".join((VIDEO_HEADER.pack(size, flags), packet)))
                 next_frame += interval
                 now = time.perf_counter()

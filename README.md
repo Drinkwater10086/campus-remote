@@ -85,3 +85,9 @@ python -m PyInstaller --noconfirm CampusRemote.spec
 ```
 
 生成的文件位于 `dist/CampusRemote.exe`。
+
+## 自动更新
+
+从 v0.2.0 开始，Windows EXE 启动后会在后台检查 GitHub 上最新的正式发行版，也可以从「更新」菜单手动检查。发现新版后会下载并核验发行附件的 SHA-256。停止共享或断开远控后，从「更新」菜单确认重启即可替换原 EXE。无外网时仍可使用局域网。
+
+发布后续版本时，先更新 `updater.py` 中的 `VERSION`，再将打包生成的 `CampusRemote.exe` 附到同版本的正式 Release（例如 `v0.3.0`）。旧版本第一次启用此功能需要手动下载新版。
