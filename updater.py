@@ -1,4 +1,4 @@
-"""Download stable Campus Remote releases and replace the Windows executable after exit."""
+"""Download stable LinkDesk Remote releases and replace the Windows executable after exit."""
 import base64
 from dataclasses import dataclass
 import hashlib
@@ -15,10 +15,10 @@ import threading
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-VERSION = "0.2.1"
-REPO = "Drinkwater10086/campus-remote"
+VERSION = "0.2.2"
+REPO = "Drinkwater10086/linkdesk-remote-personal-test"
 RELEASES = f"https://api.github.com/repos/{REPO}/releases/latest"
-ASSET = "CampusRemote.exe"
+ASSET = "LinkDeskRemote.exe"
 MAX_ASSET = 128 * 1024 * 1024
 TRUSTED_HOSTS = {"api.github.com", "github.com", "release-assets.githubusercontent.com",
                  "objects.githubusercontent.com"}
@@ -34,7 +34,7 @@ class GitHubRedirect(HTTPRedirectHandler):
 
 
 def get(url):
-    request = Request(url, headers={"User-Agent": f"CampusRemote/{VERSION}"})
+    request = Request(url, headers={"User-Agent": f"LinkDeskRemote/{VERSION}"})
     return build_opener(GitHubRedirect()).open(request, timeout=12)
 
 
@@ -79,7 +79,7 @@ def latest_update():
 
 
 def download(update, target):
-    stage = Path(tempfile.mkdtemp(prefix=".campus-update-", dir=target.parent))
+    stage = Path(tempfile.mkdtemp(prefix=".linkdesk-update-", dir=target.parent))
     candidate = stage / ASSET
     try:
         digest = hashlib.sha256()
@@ -106,7 +106,7 @@ APPLY_UPDATE = r"""
 $ErrorActionPreference = 'Stop'
 $target = $env:CAMPUS_UPDATE_TARGET
 $stage = $env:CAMPUS_UPDATE_STAGE
-$candidate = [IO.Path]::Combine($stage, 'CampusRemote.exe')
+$candidate = [IO.Path]::Combine($stage, 'LinkDeskRemote.exe')
 $backup = [IO.Path]::Combine($stage, 'previous.exe')
 $ready = [IO.Path]::Combine($stage, 'ready')
 $mode = $env:CAMPUS_UPDATE_MODE
@@ -165,7 +165,7 @@ try {
         }
     } finally {
         $null = [Reflection.Assembly]::Load('System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089')
-        $null = [Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Campus Remote Update')
+        $null = [Windows.Forms.MessageBox]::Show($_.Exception.Message, 'LinkDesk Remote · 个人测试版')
     }
     exit 1
 }
@@ -288,6 +288,6 @@ def mark_ready():
     if marker:
         path = Path(marker)
         target = Path(sys.executable).resolve()
-        if (path.name == "ready" and path.parent.name.startswith(".campus-update-")
+        if (path.name == "ready" and path.parent.name.startswith(".linkdesk-update-")
                 and path.parent.parent == target.parent):
             path.touch(exist_ok=True)

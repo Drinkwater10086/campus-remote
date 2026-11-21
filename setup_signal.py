@@ -30,7 +30,7 @@ def read_connection_code(code):
     import base64
     code = code.strip()
     if not code.startswith("CR1-") or len(code) > 2400:
-        raise ValueError("剪贴板里没有 CampusRemote 公网连接码")
+        raise ValueError("剪贴板里没有 LinkDesk Remote 公网连接码")
     code = code[4:]
     try:
         data = json.loads(base64.b64decode(code + "=" * (-len(code) % 4), altchars=b"-_", validate=True))
@@ -84,7 +84,7 @@ class SignalSetup:
     def __init__(self, device):
         if not re.fullmatch("[A-F0-9]{12}", device):
             raise ValueError("本机设备号格式无效")
-        self.name = "campus-remote-" + device.lower()
+        self.name = "linkdesk-remote-" + device.lower()
         self.events = queue.SimpleQueue()
         self.choice = queue.Queue(1)
         self.stopping = threading.Event()

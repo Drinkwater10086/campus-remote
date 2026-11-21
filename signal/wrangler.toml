@@ -1,4 +1,4 @@
-name = "campus-remote-signal"
+name = "linkdesk-remote-signal"
 main = "worker.mjs"
 compatibility_date = "2026-08-08"
 

@@ -78,6 +78,6 @@ server.headersTimeout = 10000;
 server.setTimeout(15000, socket => socket.destroy());
 const port = Number(process.env.PORT || 10000);
 server.listen(port, process.env.BIND_HOST || "0.0.0.0", () => {
-  console.log("CampusRemote signaling listening on port " + server.address().port);
+  console.log("LinkDesk Remote signaling listening on port " + server.address().port);
 });
 

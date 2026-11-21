@@ -1,6 +1,6 @@
-# 校园远控 Windows
+# LinkDesk Remote · 个人测试版
 
-在两台 64 位 Windows 电脑上打开 CampusRemote.exe，分别选择被控端、控制端。EXE 自带 Python 运行库和编解码组件。软件会在两端独立选择可用的 NVIDIA、Intel 或 AMD 硬件编解码路径，并在需要时回退到 CPU。
+在两台 64 位 Windows 电脑上打开 LinkDeskRemote.exe，分别选择被控端、控制端。EXE 自带 Python 运行库和编解码组件。软件会在两端独立选择可用的 NVIDIA、Intel 或 AMD 硬件编解码路径，并在需要时回退到 CPU。
 
 ## 无外网的局域网
 
@@ -44,7 +44,7 @@
 ## 测试
 
 - 在本机非回环内网 IPv4 上显式禁用公网信令及 STUN/TURN，验证错误密码被拒、以 TLS 连接并解码 1080p、保存双方记录和选已保存设备重连。
-- 用本地 HTTP 夹具运行同一份 Worker 代码，验证固定设备号和密码的自动信令、加密保存和重连。Cloudflare 公网实际部署及两台真实设备的校园网连通性未验证。
+- 用本地 HTTP 夹具运行同一份 Worker 代码，验证固定设备号和密码的自动信令、加密保存和重连。Cloudflare 公网实际部署及两台真实设备的跨设备连通性未验证。
 - 1080p60 表示原型的目标档位，实际表现受设备性能和网络影响。源码运行需在同目录执行 python -m pip install -r requirements.txt。最终 EXE 可通过 --diagnose-lan REPORT.json 运行同机局域网性能诊断。
 
 - v0.1.0 的 Windows EXE 在本机局域网回环测试中使用 DXGI、NVENC 和 NVDEC，1080p 的 10 次显示帧率采样为 56–60 FPS。尚无两台独立电脑间的测速数据。
@@ -81,13 +81,13 @@ python app.py
 
 ```powershell
 python -m pip install pyinstaller==6.22.3
-python -m PyInstaller --noconfirm CampusRemote.spec
+python -m PyInstaller --noconfirm LinkDeskRemote.spec
 ```
 
-生成的文件位于 `dist/CampusRemote.exe`。
+生成的文件位于 `dist/LinkDeskRemote.exe`。
 
 ## 自动更新
 
 从 v0.2.0 开始，Windows EXE 启动后会在后台检查 GitHub 上最新的正式发行版，也可以从「更新」菜单手动检查。发现新版后会下载并核验发行附件的 SHA-256。停止共享或断开远控后，从「更新」菜单确认重启即可替换原 EXE。无外网时仍可使用局域网。
 
-发布后续版本时，先更新 `updater.py` 中的 `VERSION`，再将打包生成的 `CampusRemote.exe` 附到同版本的正式 Release（例如 `v0.3.0`）。旧版本第一次启用此功能需要手动下载新版。
+发布后续版本时，先更新 `updater.py` 中的 `VERSION`，再将打包生成的 `LinkDeskRemote.exe` 附到同版本的正式 Release（例如 `v0.3.0`）。改名前的版本需手动下载一次 LinkDeskRemote.exe。已保存的设备和密码可继续使用。

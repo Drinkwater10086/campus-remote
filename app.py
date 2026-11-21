@@ -18,7 +18,7 @@ from quality import PRESETS, RATES, BITRATES, DEFAULT, dimensions_ok
 
 
 def host_window(root):
-    root.title("校园远控 · 被控端")
+    root.title("LinkDesk Remote · 个人测试版 · 被控端")
     panel = ttk.Frame(root, padding=20)
     panel.pack(fill="both", expand=True)
     secret = tk.StringVar()
@@ -131,7 +131,7 @@ class Viewer:
         self.keys = KeyCapture()
         self.control = tk.BooleanVar()
         self.status = tk.StringVar(value="未连接")
-        root.title("校园远控 · 控制端")
+        root.title("LinkDesk Remote · 个人测试版 · 控制端")
         root.geometry("1000x680")
         bar = ttk.Frame(root, padding=8)
         bar.pack(fill="x")
@@ -603,10 +603,10 @@ class CustomResolution(simpledialog.Dialog):
 
 
 def choose_mode(root):
-    root.title("校园远控")
+    root.title("LinkDesk Remote · 个人测试版")
     panel = ttk.Frame(root, padding=24)
     panel.pack(fill="both", expand=True)
-    ttk.Label(panel, text="校园远控", font=("Segoe UI", 18)).pack(anchor="w")
+    ttk.Label(panel, text="LinkDesk Remote · 个人测试版", font=("Segoe UI", 18)).pack(anchor="w")
     ttk.Label(panel, text="选择本次启动的角色").pack(anchor="w", pady=(4, 12))
 
     def select(mode):

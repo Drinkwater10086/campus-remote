@@ -69,7 +69,7 @@ class RenderSetup:
         self.key=key.strip()
         if not self.key or len(self.key)>256 or not self.key.isascii() or any(ch.isspace() for ch in self.key):
             raise ValueError("请输入 Render API Key")
-        self.name="campus-remote-"+device.lower()
+        self.name="linkdesk-remote-"+device.lower()
         self.events=queue.SimpleQueue()
         self.choice=queue.Queue(1)
         self.stopping=threading.Event()
